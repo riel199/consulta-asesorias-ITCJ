@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consulta de Asesorías | TecNM Campus Ciudad Juárez</title>
+
+<!-- Librería SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --vino:#7b1735;
+  --vino2:#5a1027;
+  --vino3:#941f43;
+  --crema:#fbf7f8;
+  --suave:#f5e8ed;
+  --texto:#27181d;
+  --muted:#725f66;
+  --borde:#e6d2da;
+  --verde:#1b7a43;
+  --verde-bg:#eafaf1;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--crema);color:var(--texto);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+header{background:linear-gradient(135deg,var(--vino2),var(--vino));color:#fff;position:relative;overflow:hidden}
+header:after{content:"";position:absolute;inset:auto -10% -70px -10%;height:140px;background:var(--crema);border-radius:50% 50% 0 0/100% 100% 0 0}
+.header-inner{max-width:1050px;margin:auto;padding:22px 18px 70px;position:relative;z-index:1}
+.kicker{font-size:12px;text-transform:uppercase;letter-spacing:.12em;opacity:.8;margin-bottom:7px}
+h1{font-size:clamp(26px,4.5vw,40px);line-height:1.05;margin:0 0 9px;max-width:650px}
+.subtitle{margin:0;opacity:.88;max-width:650px}
+main{max-width:1050px;margin:-38px auto 0;padding:0 16px 45px;position:relative;z-index:2}
+.card{background:#fff;border:1px solid var(--borde);border-radius:22px;padding:20px;box-shadow:0 18px 45px rgba(90,16,39,.12)}
+.search{display:flex;gap:10px;flex-wrap:wrap}
+input,select,button{font:inherit}
+input{flex:1;min-width:240px;padding:14px 16px;border:1px solid #d8c2ca;border-radius:13px;outline:none}
+input:focus,select:focus{border-color:var(--vino);box-shadow:0 0 0 4px rgba(123,23,53,.1)}
+select{padding:14px;border:1px solid #d8c2ca;border-radius:13px;background:#fff}
+button{padding:14px 18px;border:0;border-radius:13px;background:var(--vino);color:#fff;font-weight:700;cursor:pointer;transition:background .2s}
+button:hover{background:var(--vino3)}
+button.secondary{background:var(--suave);color:var(--vino2);border:1px solid var(--borde)}
+button.secondary:hover{background:#ecd6df}
+.info{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 6px;align-items:center}
+.pill{background:var(--suave);color:var(--vino2);padding:8px 12px;border-radius:999px;font-size:13px;font-weight:600}
+.results{margin-top:15px}
+.result{border:1px solid var(--borde);border-radius:16px;padding:18px;margin-top:12px;background:#fff;transition:box-shadow .2s}
+.result:hover{box-shadow:0 8px 25px rgba(90,16,39,.08)}
+.badge{display:inline-block;background:var(--suave);color:var(--vino2);padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;margin-bottom:6px}
+.result h2{font-size:19px;margin:4px 0 6px;color:var(--vino2)}
+.meta{font-size:14px;color:var(--muted);line-height:1.6}
+.day-btn{margin-top:10px;width:100%;text-align:left;background:#fff;color:var(--vino);border:1px solid #c995a6;padding:12px 14px;border-radius:12px}
+.day-btn:hover{background:var(--suave);color:var(--vino2)}
+.empty{text-align:center;color:var(--muted);padding:35px 10px;font-size:15px}
+.modal{position:fixed;inset:0;background:rgba(39,24,29,.68);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
+.modal.open{display:flex}
+.modal-box{background:#fff;border-radius:20px;width:min(480px,100%);padding:24px;box-shadow:0 25px 70px rgba(0,0,0,.28)}
+.modal-box h2{margin:0 0 7px;color:var(--vino2);font-size:20px}
+.modal-box p{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:12px}
+.modal-box input{width:100%;min-width:0;margin:4px 0 10px}
+.modal-actions{display:flex;gap:8px;margin-top:10px}
+.modal-actions button{flex:1}
+.error{min-height:20px;color:#a1193f;font-size:13px;margin-bottom:6px;font-weight:600}
+.private{margin-top:14px;padding:16px;border-radius:13px;background:#fff7f9;border:1px solid #e3becb;line-height:1.8;font-size:14px}
+.private.verified-box{background:var(--verde-bg);border:1px solid #b7ebd0}
+.private-title{color:var(--vino2);font-weight:800;margin-bottom:6px;font-size:15px}
+.private-title.green{color:var(--verde)}
+.admin-bar{margin-top:20px;padding-top:14px;border-top:1px dashed var(--borde);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+.admin-bar input[type="file"]{display:none}
+.admin-btn{background:none;border:none;color:var(--vino);font-weight:bold;cursor:pointer;padding:4px 8px;border-radius:6px;font-size:12px}
+.admin-btn:hover{background:var(--suave)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:0 18px 28px}
+
+#authOverlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, var(--vino2), var(--vino));
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.auth-box {
+  background: #fff;
+  padding: 32px 28px;
+  border-radius: 24px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 25px 70px rgba(0,0,0,.35);
+}
+.auth-box h2 {
+  color: var(--vino2);
+  margin: 0 0 10px;
+  font-size: 22px;
+}
+.auth-box p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+.auth-box input {
+  width: 100%;
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+.auth-box button {
+  width: 100%;
+}
+</style>
+</head>
+<body>
+
+<!-- PANTALLA DE BLOQUEO POR CONTRASEÑA -->
+<div id="authOverlay">
+  <div class="auth-box">
+    <h2>🔒 Acceso Protegido</h2>
+    <p>Ingresa la clave de acceso autorizada para consultar las asesorías del ITCJ.</p>
+    <input type="password" id="accessPass" placeholder="Ingresa la contraseña" autocomplete="current-password">
+    <div id="authError" class="error"></div>
+    <button id="authBtn">Acceder al Sistema</button>
+  </div>
+</div>
+
+<header>
+  <div class="header-inner">
+    <div class="kicker">Instituto Tecnológico de Ciudad Juárez</div>
+    <h1>Consulta de Asesorías</h1>
+    <p class="subtitle">Consulta tus asesorías registradas de forma rápida y segura.</p>
+  </div>
+</header>
+
+<main>
+<section class="card">
+  <div class="search">
+    <input id="q" type="search" placeholder="Buscar por alumno, tema o fecha (ej. Uriel, Ecuaciones, 2026-08-18)…" autocomplete="off">
+    <select id="materia"><option value="Todas">Todas las materias</option></select>
+    <button id="clear" class="secondary">Limpiar</button>
+  </div>
+
+  <div class="info">
+    <div class="pill">Asesorías registradas: <strong id="count">0</strong></div>
+    <div class="pill">🔒 N.C., notas y asesor protegidos</div>
+  </div>
+
+  <div id="results" class="results"></div>
+
+  <div class="admin-bar">
+    <span id="syncStatus">🔄 Buscando actualizaciones en Asesorias.xlsx...</span>
+    <div>
+      <input type="file" id="excelFile" accept=".xlsx, .xls">
+      <button class="admin-btn" onclick="document.getElementById('excelFile').click()">📂 Cargar nuevo Excel</button>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>La información del asesor y las notas de la asesoría solo son visibles tras verificar el N.C. del estudiante.</footer>
+
+<!-- MODAL PARA INGRESAR N.C. Y VER ASESOR/NOTAS -->
+<div id="modal" class="modal" aria-hidden="true">
+  <div class="modal-box">
+    <h2 id="modalTitle">Consultar información de la asesoría</h2>
+    <p id="modalDesc">Introduce el <strong>N.C. del alumno</strong> correspondiente a este registro para verificar el acceso.</p>
+    
+    <div id="modalInputSection">
+      <input id="nc" inputmode="numeric" placeholder="Ingresa el N.C. del alumno">
+      <div id="error" class="error"></div>
+    </div>
+
+    <!-- Contenedor donde se revelan los datos inmediatamente -->
+    <div id="modalResultSection" style="display:none;"></div>
+
+    <div class="modal-actions">
+      <button id="verify">Ver información</button>
+      <button id="close" class="secondary">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// 🔑 CONTRASEÑA DE ACCESO GENERAL
+// ==========================================
+const ACCESS_PASSWORD = "ITCJ2026"; 
+
+// Autenticación inicial
+const authOverlay = document.getElementById("authOverlay");
+const accessPass = document.getElementById("accessPass");
+const authError = document.getElementById("authError");
+const authBtn = document.getElementById("authBtn");
+
+function checkAuth() {
+  const entered = accessPass.value.trim();
+  if (entered === ACCESS_PASSWORD) {
+    sessionStorage.setItem("itcj_logged_in", "true");
+    authOverlay.style.display = "none";
+  } else {
+    authError.textContent = "Contraseña incorrecta. Inténtalo de nuevo.";
+    accessPass.value = "";
+    accessPass.focus();
+  }
+}
+
+authBtn.onclick = checkAuth;
+accessPass.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") checkAuth();
+});
+
+if (sessionStorage.getItem("itcj_logged_in") === "true") {
+  authOverlay.style.display = "none";
+} else {
+  accessPass.focus();
+}
+
+// Base de datos precargada corregida (con N.C. 23280286 y notas válidas)
+const PRELOADED_DATA = [
+  {
+    "materia": "Diferencial",
+    "dia": "2026-08-18",
+    "nombre": "Uriel Josué",
+    "tema": "Ecuaciones",
+    "nc_alumno": "23280286",
+    "asesor_valor": "Uriel Josué González Cano (23280286)",
+    "notas": "Ninguna"
+  },
+  {
+    "materia": "Prob. Est",
+    "dia": "2026-08-18",
+    "nombre": "Uriel Josué",
+    "tema": "Desviación Estandar",
+    "nc_alumno": "23280286",
+    "asesor_valor": "Uriel Josué González Cano (Firma registrada)",
+    "notas": "Sin observaciones"
+  },
+  {
+    "materia": "Infe. I",
+    "dia": "2026-08-18",
+    "nombre": "Uriel Josué",
+    "tema": "Aleatorización",
+    "nc_alumno": "23280286",
+    "asesor_valor": "Uriel Josué González Cano (Firma registrada)",
+    "notas": "Sin observaciones"
+  },
+  {
+    "materia": "Infe. II",
+    "dia": "2026-08-18",
+    "nombre": "Uriel Josué",
+    "tema": "Chi",
+    "nc_alumno": "23280286",
+    "asesor_valor": "Uriel Josué González Cano (Firma registrada)",
+    "notas": "Sin observaciones"
+  },
+  {
+    "materia": "Contr. Est",
+    "dia": "2026-08-18",
+    "nombre": "Uriel Josué",
+    "tema": "Diagramas",
+    "nc_alumno": "23280286",
+    "asesor_valor": "Uriel Josué González Cano (Firma registrada)",
+    "notas": "Sin observaciones"
+  }
+];
+
+let DATA = [];
+let selectedItem = null;
+let selectedIndex = null;
+let currentResults = [];
+
+const q = document.getElementById("q");
+const materia = document.getElementById("materia");
+const results = document.getElementById("results");
+const count = document.getElementById("count");
+const modal = document.getElementById("modal");
+const ncInput = document.getElementById("nc");
+const errorBox = document.getElementById("error");
+const excelFileInput = document.getElementById("excelFile");
+const syncStatus = document.getElementById("syncStatus");
+const modalInputSection = document.getElementById("modalInputSection");
+const modalResultSection = document.getElementById("modalResultSection");
+const verifyBtn = document.getElementById("verify");
+const modalTitle = document.getElementById("modalTitle");
+const modalDesc = document.getElementById("modalDesc");
+
+function norm(str) {
+  return String(str ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function esc(str) {
+  return String(str ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Procesa todas las hojas del Excel
+function parseWorkbook(workbook) {
+  const asesorias = [];
+  const asesoresMap = { "23280286": "Uriel Josué González Cano" };
+
+  // 1. Extraer del Lobby
+  if (workbook.SheetNames.includes("Lobby")) {
+    const lobbyData = XLSX.utils.sheet_to_json(workbook.Sheets["Lobby"], { header: 1, defval: "" });
+    lobbyData.forEach(row => {
+      const nombre = row[1] ? String(row[1]).trim() : "";
+      const nc = row[8] ? String(row[8]).trim() : "";
+      if (nombre && nc && nc !== "N.C" && nc !== "nan") {
+        asesoresMap[nc] = nombre;
+      }
+    });
+  }
+
+  // 2. Extraer materias
+  workbook.SheetNames.forEach(sheetName => {
+    if (sheetName === "Lobby") return;
+    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
+    let headerIdx = -1;
+    for (let r = 0; r < sheetData.length; r++) {
+      const rowText = sheetData[r].map(cell => String(cell).trim().toLowerCase());
+      if (rowText.some(cell => cell.includes("día") || cell.includes("dia") || cell.includes("nombre del alumno"))) {
+        headerIdx = r;
+        break;
+      }
+    }
+
+    if (headerIdx !== -1) {
+      const colMap = {};
+      sheetData[headerIdx].forEach((h, colIndex) => {
+        const hStr = String(h).trim().toLowerCase();
+        if (hStr.includes("día") || hStr.includes("dia") || hStr.includes("fecha")) colMap.dia = colIndex;
+        else if (hStr.includes("nombre")) colMap.nombre = colIndex;
+        else if (hStr.includes("tema")) colMap.tema = colIndex;
+        else if (hStr.includes("n.c del alumno") || hStr.includes("nc alumno") || hStr.includes("n.c. alumno") || (hStr.includes("n.c") && !hStr.includes("asesor"))) {
+          colMap.nc_alumno = colIndex;
+        }
+        else if (hStr.includes("asesor") || hStr.includes("firma")) {
+          colMap.asesor = colIndex;
+        }
+        else if (hStr.includes("nota") || hStr.includes("observacion")) {
+          colMap.notas = colIndex;
+        }
+      });
+
+      // Fallback a posiciones exactas si los nombres de columna varían
+      if (colMap.nc_alumno === undefined) colMap.nc_alumno = 8;
+      if (colMap.asesor === undefined) colMap.asesor = 9;
+      if (colMap.notas === undefined) colMap.notas = 10;
+
+      for (let r = headerIdx + 1; r < sheetData.length; r++) {
+        const row = sheetData[r];
+        const rawNombre = colMap.nombre !== undefined ? row[colMap.nombre] : "";
+        const rawDia = colMap.dia !== undefined ? row[colMap.dia] : "";
+
+        if (rawNombre || rawDia) {
+          let formattedDia = String(rawDia).trim();
+          if (typeof rawDia === "number") {
+            const dateObj = XLSX.SSF.parse_date_code(rawDia);
+            if (dateObj) formattedDia = `${dateObj.y}-${String(dateObj.m).padStart(2, "0")}-${String(dateObj.d).padStart(2, "0")}`;
+          } else if (formattedDia.includes("T") || formattedDia.includes(" ")) {
+            formattedDia = formattedDia.split(/[T ]/)[0];
+          }
+
+          let ncAlumnoVal = colMap.nc_alumno !== undefined ? String(row[colMap.nc_alumno]).trim() : "";
+          // Corrección automática si falta un dígito por typo de Excel
+          if (ncAlumnoVal === "2328028") ncAlumnoVal = "23280286";
+
+          let asesorVal = colMap.asesor !== undefined ? String(row[colMap.asesor]).trim() : "";
+          let asesorDisplay = asesorVal;
+          if (asesoresMap[asesorVal]) {
+            asesorDisplay = `${asesoresMap[asesorVal]} (${asesorVal})`;
+          } else if (asesorVal.toLowerCase() === "x") {
+            asesorDisplay = "Uriel Josué González Cano (Firma registrada)";
+          } else if (!asesorDisplay || asesorDisplay === "nan") {
+            asesorDisplay = "Uriel Josué González Cano";
+          }
+
+          let rawNotas = colMap.notas !== undefined ? String(row[colMap.notas]).trim() : "";
+          if (!rawNotas || rawNotas === "nan" || rawNotas === "undefined") {
+            rawNotas = "Sin observaciones registradas";
+          }
+
+          asesorias.push({
+            materia: sheetName,
+            dia: formattedDia || "—",
+            nombre: String(rawNombre).trim() || "Alumno sin nombre",
+            tema: colMap.tema !== undefined ? String(row[colMap.tema]).trim() || "—" : "—",
+            nc_alumno: ncAlumnoVal,
+            asesor_valor: asesorDisplay,
+            notas: rawNotas
+          });
+        }
+      }
+    }
+  });
+
+  return asesorias;
+}
+
+function cargarMaterias() {
+  const actual = materia.value;
+  materia.innerHTML = '<option value="Todas">Todas las materias</option>';
+  const materiasUnicas = [...new Set(DATA.map(x => x.materia).filter(Boolean))];
+  materiasUnicas.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m;
+    materia.appendChild(opt);
+  });
+  if (materiasUnicas.includes(actual)) {
+    materia.value = actual;
+  }
+}
+
+// Carga automática del Excel
+async function cargarDatosAutomatico() {
+  try {
+    const url = "Asesorias.xlsx?t=" + new Date().getTime();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("No se pudo obtener el archivo");
+    
+    const buffer = await res.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const nuevosDatos = parseWorkbook(workbook);
+    
+    if (nuevosDatos.length > 0) {
+      DATA = nuevosDatos;
+      localStorage.setItem("itcj_asesorias_data", JSON.stringify(DATA));
+      cargarMaterias();
+      render();
+      syncStatus.textContent = "🟢 Sincronizado en tiempo real (" + new Date().toLocaleTimeString() + ")";
+    }
+  } catch (err) {
+    if (DATA.length === 0) {
+      DATA = PRELOADED_DATA;
+      cargarMaterias();
+      render();
+    }
+    syncStatus.textContent = "ℹ️ Modo local (usa el botón para cargar archivo)";
+  }
+}
+
+// Carga manual
+excelFileInput.onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const buffer = evt.target.result;
+    const workbook = XLSX.read(buffer, { type: "array" });
+    DATA = parseWorkbook(workbook);
+    localStorage.setItem("itcj_asesorias_data", JSON.stringify(DATA));
+    cargarMaterias();
+    render();
+    syncStatus.textContent = "🟢 Archivo cargado correctamente";
+    alert("¡Base de datos actualizada correctamente!");
+  };
+  reader.readAsArrayBuffer(file);
+};
+
+function render() {
+  const term = norm(q.value);
+  const m = materia.value;
+
+  currentResults = DATA.filter(x => {
+    const coincideMateria = (m === "Todas" || x.materia === m);
+    const searchable = norm([x.nombre, x.tema, x.dia, x.materia].join(" "));
+    const coincideBusqueda = (!term || searchable.includes(term));
+    return coincideMateria && coincideBusqueda;
+  });
+
+  count.textContent = currentResults.length;
+
+  if (!currentResults.length) {
+    results.innerHTML = '<div class="empty">No se encontraron asesorías registradas con ese criterio.</div>';
+    return;
+  }
+
+  results.innerHTML = currentResults.map((x, i) => `
+    <article class="result" id="card-${i}">
+      <span class="badge">${esc(x.materia)}</span>
+      <h2>${esc(x.nombre)}</h2>
+      <div class="meta"><strong>Tema:</strong> ${esc(x.tema)}</div>
+      <button class="day-btn" data-i="${i}">
+        📅 Día de la asesoría: <strong>${esc(x.dia)}</strong><br>
+        <small style="opacity:.85">Haz clic aquí para ingresar tu N.C. y ver el asesor y notas</small>
+      </button>
+      <div id="private-card-${i}"></div>
+    </article>
+  `).join("");
+
+  results.querySelectorAll(".day-btn").forEach(btn => {
+    btn.onclick = () => {
+      const idx = Number(btn.dataset.i);
+      openModal(currentResults[idx], idx);
+    };
+  });
+}
+
+function openModal(item, index) {
+  selectedItem = item;
+  selectedIndex = index;
+  ncInput.value = "";
+  errorBox.textContent = "";
+  
+  modalTitle.textContent = "Consultar información de la asesoría";
+  modalDesc.style.display = "block";
+  modalInputSection.style.display = "block";
+  modalResultSection.style.display = "none";
+  verifyBtn.style.display = "inline-block";
+
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  ncInput.focus();
+}
+
+function closeModal() {
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+// Verificación y revelación de datos
+document.getElementById("verify").onclick = () => {
+  const entered = norm(ncInput.value).replace(/\s/g, "");
+  let expected = norm(selectedItem.nc_alumno).replace(/\s/g, "");
+
+  if (!expected) {
+    errorBox.textContent = "Este registro no tiene un N.C. registrado en el Excel.";
+    return;
+  }
+
+  // Permitir coincidencia exacta o con prefijo si hubo error de 1 dígito en Excel
+  const esValido = (entered === expected) || (entered.startsWith(expected) && expected.length >= 7);
+
+  if (!esValido) {
+    errorBox.textContent = "N.C. incorrecto. Verifica tu número de control e inténtalo nuevamente.";
+    return;
+  }
+
+  // 1. Mostrar dentro de la ventana modal inmediatamente
+  modalTitle.textContent = "✓ Información Desbloqueada";
+  modalDesc.style.display = "none";
+  modalInputSection.style.display = "none";
+  verifyBtn.style.display = "none";
+  
+  modalResultSection.style.display = "block";
+  modalResultSection.innerHTML = `
+    <div class="private verified-box">
+      <div class="private-title green">✓ Datos de la Asesoría</div>
+      <div><strong>Alumno:</strong> ${esc(selectedItem.nombre)}</div>
+      <div><strong>N.C. del Alumno:</strong> ${esc(selectedItem.nc_alumno)}</div>
+      <div><strong>Materia:</strong> ${esc(selectedItem.materia)}</div>
+      <div><strong>Tema:</strong> ${esc(selectedItem.tema)}</div>
+      <div><strong>Asesor:</strong> ${esc(selectedItem.asesor_valor)}</div>
+      <div><strong>Notas / Calificación:</strong> ${esc(selectedItem.notas)}</div>
+    </div>
+  `;
+
+  // 2. Mostrar también en la tarjeta de la página
+  const cardContainer = document.getElementById(`private-card-${selectedIndex}`);
+  if (cardContainer) {
+    cardContainer.innerHTML = `
+      <div class="private verified-box">
+        <div class="private-title green">✓ Datos de la Asesoría</div>
+        <div><strong>Asesor:</strong> ${esc(selectedItem.asesor_valor)}</div>
+        <div><strong>Notas / Calificación:</strong> ${esc(selectedItem.notas)}</div>
+      </div>
+    `;
+  }
+};
+
+ncInput.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("verify").click(); });
+document.getElementById("close").onclick = closeModal;
+modal.onclick = e => { if (e.target === modal) closeModal(); };
+
+document.getElementById("clear").onclick = () => {
+  q.value = "";
+  materia.value = "Todas";
+  render();
+  q.focus();
+};
+
+q.oninput = render;
+materia.onchange = render;
+
+// Inicializar
+cargarDatosAutomatico();
+setInterval(cargarDatosAutomatico, 3000);
+</script>
+</body>
+</html>
